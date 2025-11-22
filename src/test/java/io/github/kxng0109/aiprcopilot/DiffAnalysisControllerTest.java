@@ -5,6 +5,7 @@ import io.github.kxng0109.aiprcopilot.config.api.dto.AiCallMetadata;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffRequest;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffResponse;
 import io.github.kxng0109.aiprcopilot.controller.DiffAnalysisController;
+import io.github.kxng0109.aiprcopilot.error.DiffTooLargeException;
 import io.github.kxng0109.aiprcopilot.service.DiffAnalysisService;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -18,6 +19,7 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -87,6 +89,40 @@ public class DiffAnalysisControllerTest {
         mockMvc.perform(post("/api/v1/analyze-diff")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(objectMapper.writeValueAsString(invalidRequest)))
-               .andExpect(status().isBadRequest());
+               .andExpect(status().isBadRequest())
+               .andExpect(jsonPath("$.statusCode").value(400))
+               .andExpect(jsonPath("$.message").value("{diff=Diff must not be blank}"));
+    }
+
+    @Test
+    public void analyzeDiff_shouldReturn413DiffTooLargeException_whenDiffIsTooLarge() throws Exception {
+        int maxDiffChars = 1024;
+        String diff = "x".repeat(maxDiffChars + 1);
+
+        AnalyzeDiffRequest request = AnalyzeDiffRequest.builder()
+                                                       .diff(diff)
+                                                       .maxSummaryLength(1024)
+                                                       .requestId("req-1")
+                                                       .build();
+
+        when(diffAnalysisService.analyzeDiff(any(AnalyzeDiffRequest.class)))
+                .thenThrow(new DiffTooLargeException());
+
+        mockMvc.perform(post("/api/v1/analyze-diff")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(objectMapper.writeValueAsString(request)))
+               .andExpect(status().isPayloadTooLarge())
+               .andExpect(jsonPath("$.statusCode").value(413))
+               .andExpect(jsonPath("$.message").value("Diff exceeded maximum allowed size"));
+
+        verify(diffAnalysisService).analyzeDiff(any(AnalyzeDiffRequest.class));
+    }
+
+    @Test
+    public void shouldThrowNoResourceFoundException_whenEndpointDoesNotExist() throws Exception {
+        mockMvc.perform(post("/api/v1/does-not-exist")
+                                .contentType(MediaType.APPLICATION_JSON))
+               .andExpect(status().isNotFound())
+               .andExpect(jsonPath("$.statusCode").value(404));
     }
 }

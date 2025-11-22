@@ -51,10 +51,12 @@ public class DiffAnalysisService {
 
     public AnalyzeDiffResponse analyzeDiff(AnalyzeDiffRequest request) {
         String diff = request.diff();
-        if (diff.length() > analysisProperties.getMaxDiffChars()) {
+        int maxDiffChars = analysisProperties.getMaxDiffChars();
+
+        if (diff.length() > maxDiffChars) {
             throw new DiffTooLargeException(
                     String.format("Diff exceeded maximum allowed size of %d characters",
-                                  analysisProperties.getMaxDiffChars()
+                                  maxDiffChars
                     )
             );
         }
