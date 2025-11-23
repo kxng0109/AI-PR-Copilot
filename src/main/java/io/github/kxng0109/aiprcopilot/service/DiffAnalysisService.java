@@ -3,7 +3,7 @@ package io.github.kxng0109.aiprcopilot.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.kxng0109.aiprcopilot.config.PrCopilotAnalysisProperties;
-import io.github.kxng0109.aiprcopilot.config.PrcopilotLoggingProperties;
+import io.github.kxng0109.aiprcopilot.config.PrCopilotLoggingProperties;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AiCallMetadata;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffRequest;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffResponse;
@@ -21,7 +21,6 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.SystemPromptTemplate;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -74,10 +73,10 @@ public class DiffAnalysisService {
             - **STRICT JSON**: Ensure all keys are present. Ensure the JSON is parsable.
             """;
     private final PrCopilotAnalysisProperties analysisProperties;
-    private final ChatClient chatClient;
-    private final ChatOptions chatOptions;
+    private final ChatClient primaryChatClient;
+    private final ChatOptions primaryChatOptions;
     private final ObjectMapper objectMapper;
-    private final PrcopilotLoggingProperties loggingProperties;
+    private final PrCopilotLoggingProperties loggingProperties;
 
     public AnalyzeDiffResponse analyzeDiff(AnalyzeDiffRequest request) {
         String diff = request.diff();
@@ -152,8 +151,8 @@ public class DiffAnalysisService {
     }
 
     private ChatResponse callAiModel(Prompt prompt) {
-        return chatClient.prompt(prompt)
-                         .options(chatOptions)
+        return primaryChatClient.prompt(prompt)
+                         .options(primaryChatOptions)
                          .call()
                          .chatResponse();
     }

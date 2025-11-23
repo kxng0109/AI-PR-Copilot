@@ -10,17 +10,17 @@ management:
 info:
   project:
     name: AI PR Copilot
-    description: "AI-powered code audit and risk scoring service"
+    description: "Self-hosted AI-powered code audit and PR analysis service with multi-provider support"
     version: "1.0.0"
-  contact:
-    team: "Platform Engineering"
-    email: "prcopilot-support@example.com"
 
 springdoc:
   api-docs:
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
+
+
+# PR Copilot Configuration
 
 prcopilot:
   analysis:
@@ -37,6 +37,18 @@ prcopilot:
     log-prompts: ${LOG_PROMPTS:false}
     log-responses: ${LOG_RESPONSES:false}
 
+  ai:
+    # Primary AI provider: openai, anthropic, gemini, ollama
+    provider: ${PRCOPILOT_AI_PROVIDER:openai}
+    # Optional fallback provider
+    fallback-provider: ${PRCOPILOT_AI_FALLBACK_PROVIDER:ollama}
+    # Enable automatic fallback
+    auto-fallback: ${PRCOPILOT_AI_AUTO_FALLBACK:false}
+    temperature: ${AI_TEMPERATURE:0.1}
+    max-tokens: ${AI_MAX_TOKENS:1024}
+    timeout-millis: ${AI_TIMEOUT_MILLIS:30000}
+
+
 spring:
   ai:
     openai:
@@ -45,13 +57,32 @@ spring:
         options:
           model: ${OPENAI_MODEL:gpt-4o}
       api-key: ${OPENAI_API_KEY}
+
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY}
+      base-url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com/}
+      chat:
+        options:
+          model: ${ANTHROPIC_MODEL:claude-sonnet-4-0}
+
+    vertex:
+      ai:
+        gemini:
+          chat:
+            options:
+              model: ${GEMINI_MODEL:gemini-2.0-flash}
+          project-id: ${GEMINI_PROJECT_ID}
+          location: ${GEMINI_LOCATION:us-central1}
+
+    ollama:
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      chat:
+        options:
+          model: ${OLLAMA_MODEL:qwen3:4b}
+
   application:
     name: ai-pr-copilot
 
-ai:
-  temperature: ${AI_TEMPERATURE:0.1}
-  max-tokens: ${AI_MAX_TOKENS:1024}
-  timeout-millis: ${AI_TIMEOUT_MILLIS:30000}
 
 logging:
   level:

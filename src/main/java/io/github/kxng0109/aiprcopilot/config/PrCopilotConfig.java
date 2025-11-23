@@ -6,8 +6,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableConfigurationProperties({
         PrCopilotAnalysisProperties.class,
-        PrcopilotLoggingProperties.class,
-        AiGenerationProperties.class
+        PrCopilotLoggingProperties.class,
+        MultiAiConfigurationProperties.class
 })
 public class PrCopilotConfig {
 }

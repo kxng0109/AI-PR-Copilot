@@ -2,9 +2,9 @@ package io.github.kxng0109.aiprcopilot.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.kxng0109.aiprcopilot.config.AiGenerationProperties;
+import io.github.kxng0109.aiprcopilot.config.MultiAiConfigurationProperties;
 import io.github.kxng0109.aiprcopilot.config.PrCopilotAnalysisProperties;
-import io.github.kxng0109.aiprcopilot.config.PrcopilotLoggingProperties;
+import io.github.kxng0109.aiprcopilot.config.PrCopilotLoggingProperties;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffRequest;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffResponse;
 import io.github.kxng0109.aiprcopilot.config.api.dto.ModelAnalyzeDiffResult;
@@ -38,10 +38,10 @@ public class DiffAnalysisServiceTest {
     private PrCopilotAnalysisProperties prCopilotAnalysisProperties;
 
     @Mock
-    private AiGenerationProperties aiGenerationProperties;
+    private MultiAiConfigurationProperties multiAiConfigurationProperties;
 
     @Mock
-    private PrcopilotLoggingProperties loggingProperties;
+    private PrCopilotLoggingProperties loggingProperties;
 
     @Mock
     private ChatClient chatClient;
@@ -63,12 +63,14 @@ public class DiffAnalysisServiceTest {
         prCopilotAnalysisProperties.setIncludeRawModelOutput(false);
         prCopilotAnalysisProperties.setDefaultStyle("conventional-commits");
 
-        aiGenerationProperties = new AiGenerationProperties();
-        aiGenerationProperties.setMaxTokens(1024);
-        aiGenerationProperties.setTemperature(0.1);
-        aiGenerationProperties.setTimeoutMillis(30000L);
+        multiAiConfigurationProperties = new MultiAiConfigurationProperties();
+        multiAiConfigurationProperties.setMaxTokens(1024);
+        multiAiConfigurationProperties.setTemperature(0.1);
+        multiAiConfigurationProperties.setTimeoutMillis(30000L);
 
-        diffAnalysisService = new DiffAnalysisService(prCopilotAnalysisProperties, chatClient, chatOptions, objectMapper, loggingProperties);
+        diffAnalysisService = new DiffAnalysisService(prCopilotAnalysisProperties, chatClient, chatOptions,
+                                                      objectMapper, loggingProperties
+        );
     }
 
     @Test
@@ -149,7 +151,8 @@ public class DiffAnalysisServiceTest {
                 List.of("System.out.println in production code can expose sensitive data through logs"),
                 List.of("Verify that System.out.println does not affect the actual response mapping logic"),
                 List.of("src/main/java/io/github/kxng0109/aiprcopilot/config/api/dto/AnalyzeDiffRequest.java",
-                        "src/main/java/io/github/kxng0109/aiprcopilot/service/DiffAnalysisService.java"),
+                        "src/main/java/io/github/kxng0109/aiprcopilot/service/DiffAnalysisService.java"
+                ),
                 "\"The diff shows minimal changes - primarily a debugging statement and documentation updates. "
         );
 

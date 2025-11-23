@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @Getter
 @Setter
 @ConfigurationProperties(prefix = "prcopilot.logging")
-public class PrcopilotLoggingProperties {
+public class PrCopilotLoggingProperties {
 
     private boolean logPrompts;
 

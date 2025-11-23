@@ -7,15 +7,15 @@ import org.springframework.boot.test.context.SpringBootTest;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @SpringBootTest
-public class AiGenerationPropertiesTest {
+public class MultiAiConfigurationPropertiesTest {
 
     @Autowired
-    private AiGenerationProperties aiGenerationProperties;
+    private MultiAiConfigurationProperties multiAiConfigurationProperties;
 
     @Test
     void shouldBindDefaultsFromApplicationYaml(){
-        assertEquals(0.1, aiGenerationProperties.getTemperature());
-        assertEquals(1024, aiGenerationProperties.getMaxTokens());
-        assertEquals(30000L, aiGenerationProperties.getTimeoutMillis());
+        assertEquals(0.1, multiAiConfigurationProperties.getTemperature());
+        assertEquals(1024, multiAiConfigurationProperties.getMaxTokens());
+        assertEquals(30000L, multiAiConfigurationProperties.getTimeoutMillis());
     }
 }
