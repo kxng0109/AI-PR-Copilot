@@ -4,6 +4,7 @@ import io.github.kxng0109.aiprcopilot.config.api.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -125,6 +126,65 @@ public class GlobalExceptionHandler {
             HttpServletRequest request
     ) {
         HttpStatus status = HttpStatus.METHOD_NOT_ALLOWED;
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                                                   .timestamp(OffsetDateTime.now())
+                                                   .statusCode(status.value())
+                                                   .error(status.getReasonPhrase())
+                                                   .message(ex.getMessage())
+                                                   .path(request.getRequestURI())
+                                                   .build();
+
+        return ResponseEntity.status(status).body(errorResponse);
+    }
+
+    /**
+     * Handles {@code HttpMessageNotReadableException} by constructing an {@code ErrorResponse}
+     * and returning it wrapped in a {@code ResponseEntity} with an HTTP 400 (Bad Request) status code.
+     *
+     * <p>Provides a more descriptive error message if the request body is missing.
+     *
+     * @param ex      the exception that occurred, must not be {@code null}
+     * @param request the HTTP request that caused the exception, must not be {@code null}
+     * @return a response entity containing error details, never {@code null}
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(
+            HttpMessageNotReadableException ex,
+            HttpServletRequest request
+    ){
+        HttpStatus status = HttpStatus.BAD_REQUEST;
+        String message = ex.getMessage();
+
+        if(message != null && message.contains("request body is missing")){
+            message = "Request body is missing. JSON object required.";
+        }
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                                                   .timestamp(OffsetDateTime.now())
+                                                   .statusCode(status.value())
+                                                   .error(status.getReasonPhrase())
+                                                   .message(message)
+                                                   .path(request.getRequestURI())
+                                                   .build();
+
+        return ResponseEntity.status(status).body(errorResponse);
+    }
+
+    /**
+     * Handles {@code ModelOutputParseException} by constructing an {@code ErrorResponse} containing
+     * error details and returning it wrapped in a {@code ResponseEntity} with an HTTP 422 (Unprocessable Entity) status code.
+     *
+     * @param ex the exception that occurred, must not be {@code null}
+     * @param request the HTTP request that caused the exception, must not be {@code null}
+     * @return a response entity containing error details, never {@code null}
+     */
+    @ExceptionHandler(ModelOutputParseException.class)
+    public ResponseEntity<ErrorResponse> handleModelOutputParseException(
+            ModelOutputParseException ex,
+            HttpServletRequest request
+    ){
+        HttpStatus status = HttpStatus.UNPROCESSABLE_ENTITY;
 
         ErrorResponse errorResponse = ErrorResponse.builder()
                                                    .timestamp(OffsetDateTime.now())

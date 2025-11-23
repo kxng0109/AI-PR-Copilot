@@ -1,9 +1,12 @@
 package io.github.kxng0109.aiprcopilot.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.kxng0109.aiprcopilot.config.AiGenerationProperties;
 import io.github.kxng0109.aiprcopilot.config.PrCopilotAnalysisProperties;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffRequest;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffResponse;
+import io.github.kxng0109.aiprcopilot.config.api.dto.ModelAnalyzeDiffResult;
 import io.github.kxng0109.aiprcopilot.error.DiffTooLargeException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,6 +45,9 @@ public class DiffAnalysisServiceTest {
     @Mock
     private ChatOptions chatOptions;
 
+    @Mock
+    private ObjectMapper objectMapper;
+
     @InjectMocks
     private DiffAnalysisService diffAnalysisService;
 
@@ -58,16 +64,27 @@ public class DiffAnalysisServiceTest {
         aiGenerationProperties.setTemperature(0.1);
         aiGenerationProperties.setTimeoutMillis(30000L);
 
-        diffAnalysisService = new DiffAnalysisService(prCopilotAnalysisProperties, chatClient, chatOptions);
+        diffAnalysisService = new DiffAnalysisService(prCopilotAnalysisProperties, chatClient, chatOptions, objectMapper);
     }
 
     @Test
-    public void analyzeDiff_shouldUseDefaults_whenLanguageAndStyleAreNull() {
+    public void analyzeDiff_shouldUseDefaults_whenLanguageAndStyleAreNull() throws JsonProcessingException {
         AnalyzeDiffRequest request = AnalyzeDiffRequest.builder()
                                                        .diff("a diff sha")
                                                        .requestId("req-1")
                                                        .build();
 
+        ModelAnalyzeDiffResult modelAnalyzeDiffResult = new ModelAnalyzeDiffResult(
+                "Added debugging output and minor documentation clarification in DiffAnalysisService",
+                "Added a System.out.println for debugging and updated documentation to clarify JSON field requirements and remove extraneous text.",
+                "The changes include adding System.out.println(response) in the mapToAnalyzeDiffResponse method for debugging purposes.",
+                List.of("System.out.println in production code can expose sensitive data through logs"),
+                List.of("Verify that System.out.println does not affect the actual response mapping logic"),
+                List.of("src/main/java/io/github/kxng0109/aiprcopilot/service/DiffAnalysisService.java"),
+                "\"The diff shows minimal changes - primarily a debugging statement and documentation updates. "
+        );
+
+        when(objectMapper.readValue(anyString(), eq(ModelAnalyzeDiffResult.class))).thenReturn(modelAnalyzeDiffResult);
         ChatResponseMetadata chatResponseMetadata = mockChatResponse();
 
         AnalyzeDiffResponse response = diffAnalysisService.analyzeDiff(request);
@@ -85,7 +102,7 @@ public class DiffAnalysisServiceTest {
     }
 
     @Test
-    public void analyzeDiff_shouldPopulateTouchedFiles_fromDiffHeaders() {
+    public void analyzeDiff_shouldPopulateTouchedFiles_fromDiffHeaders() throws JsonProcessingException {
         String diff = """
                 diff --git a/src/main/java/io/github/kxng0109/aiprcopilot/config/api/dto/AnalyzeDiffRequest.java b/src/main/java/io/github/kxng0109/aiprcopilot/config/api/dto/AnalyzeDiffRequest.java
                 index e508847..c42c48f 100644
@@ -121,6 +138,18 @@ public class DiffAnalysisServiceTest {
                                                        .requestId("req-1")
                                                        .build();
 
+        ModelAnalyzeDiffResult modelAnalyzeDiffResult = new ModelAnalyzeDiffResult(
+                "Added debugging output and minor documentation clarification in DiffAnalysisService",
+                "Added a System.out.println for debugging and updated documentation to clarify JSON field requirements and remove extraneous text.",
+                "The changes include adding System.out.println(response) in the mapToAnalyzeDiffResponse method for debugging purposes.",
+                List.of("System.out.println in production code can expose sensitive data through logs"),
+                List.of("Verify that System.out.println does not affect the actual response mapping logic"),
+                List.of("src/main/java/io/github/kxng0109/aiprcopilot/config/api/dto/AnalyzeDiffRequest.java",
+                        "src/main/java/io/github/kxng0109/aiprcopilot/service/DiffAnalysisService.java"),
+                "\"The diff shows minimal changes - primarily a debugging statement and documentation updates. "
+        );
+
+        when(objectMapper.readValue(anyString(), eq(ModelAnalyzeDiffResult.class))).thenReturn(modelAnalyzeDiffResult);
         mockChatResponse();
 
         AnalyzeDiffResponse response = diffAnalysisService.analyzeDiff(request);
@@ -143,6 +172,14 @@ public class DiffAnalysisServiceTest {
         assertThrows(DiffTooLargeException.class, () -> diffAnalysisService.analyzeDiff(request));
     }
 
+    /**
+     * Mocks a chat response for testing purposes.
+     *
+     * <p>Creates a {@code ChatResponseMetadata} object populated with fixed values,
+     * including a usage model and metadata, and sets up mock interactions with the {@code ChatClient}.
+     *
+     * @return the mocked {@code ChatResponseMetadata}, never {@code null}
+     */
     private ChatResponseMetadata mockChatResponse() {
         Generation generation = new Generation(
                 new AssistantMessage("Some details or message")
