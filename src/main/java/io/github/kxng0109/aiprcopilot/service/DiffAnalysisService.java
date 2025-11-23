@@ -3,6 +3,7 @@ package io.github.kxng0109.aiprcopilot.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.kxng0109.aiprcopilot.config.PrCopilotAnalysisProperties;
+import io.github.kxng0109.aiprcopilot.config.PrcopilotLoggingProperties;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AiCallMetadata;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffRequest;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffResponse;
@@ -31,7 +32,7 @@ import java.util.regex.Pattern;
 @Slf4j
 public class DiffAnalysisService {
 
-    private static final Pattern DIFF_GIT_LINE_PATTERN = Pattern.compile("^diff --git a/(.+?) b/(.+)$");
+    private static final Pattern DIFF_GIT_LINE_PATTERN = Pattern.compile("^diff --git a/(.+?) b/(.+?)$");
     private final String SYSTEM_PROMPT = """
             You are a Principal Code Auditor and Security Analyst known for strict, pessimistic code reviews.
             Your goal is to find bugs, security vulnerabilities, and logic errors.
@@ -74,6 +75,7 @@ public class DiffAnalysisService {
     private final ChatClient chatClient;
     private final ChatOptions chatOptions;
     private final ObjectMapper objectMapper;
+    private final PrcopilotLoggingProperties loggingProperties;
 
     public AnalyzeDiffResponse analyzeDiff(AnalyzeDiffRequest request) {
         String diff = request.diff();
@@ -93,6 +95,8 @@ public class DiffAnalysisService {
         Integer maxSummaryLength = request.maxSummaryLength();
 
         Prompt prompt = buildPrompt(language, style, diff, maxSummaryLength, request.requestId());
+
+        if (loggingProperties.isLogPrompts()) log.info(prompt.toString());
 
         long start = System.currentTimeMillis();
         ChatResponse aiResponse = callAiModel(prompt);
@@ -146,8 +150,8 @@ public class DiffAnalysisService {
     }
 
     private ChatResponse callAiModel(Prompt prompt) {
-        Prompt promptWithOptions = new Prompt(prompt.getInstructions(), chatOptions);
-        return chatClient.prompt(promptWithOptions)
+        return chatClient.prompt(prompt)
+                         .options(chatOptions)
                          .call()
                          .chatResponse();
     }
@@ -159,10 +163,13 @@ public class DiffAnalysisService {
             String requestId
     ) {
         String modelOutput = extractModelOutputText(response);
+        log.debug("AI model raw output: {}", modelOutput);
         String cleanedModelOutput = sanitizeModelOutput(modelOutput);
+        log.debug("AI model cleaned output: {}", cleanedModelOutput);
 
         try {
             ModelAnalyzeDiffResult aiResult = objectMapper.readValue(cleanedModelOutput, ModelAnalyzeDiffResult.class);
+            log.debug("AI model analysis result: {}", aiResult);
 
             if (aiResult == null) {
                 throw new ModelOutputParseException("Parsed model output is null. Expected non-null, valid JSON DTO.");
@@ -173,6 +180,8 @@ public class DiffAnalysisService {
                 throw new ModelOutputParseException(
                         "Parsed model output is missing required fields. Output: " + cleanedModelOutput);
             }
+
+            if (loggingProperties.isLogResponses()) log.info(aiResult.toString());
 
             String model = response.getMetadata().getModel();
             int tokensUsed = response.getMetadata().getUsage().getTotalTokens();
@@ -196,6 +205,12 @@ public class DiffAnalysisService {
                                       .analysisNotes(aiResult.analysisNotes())
                                       .touchedFiles(touchedFiles)
                                       .metadata(metadata)
+                                      .rawModelOutput(
+                                              analysisProperties.isIncludeRawModelOutput()
+                                                      ? modelOutput
+                                                      : null
+                                      )
+                                      .requestId(requestId)
                                       .build();
 
         } catch (JsonProcessingException e) {

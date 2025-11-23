@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.kxng0109.aiprcopilot.config.AiGenerationProperties;
 import io.github.kxng0109.aiprcopilot.config.PrCopilotAnalysisProperties;
+import io.github.kxng0109.aiprcopilot.config.PrcopilotLoggingProperties;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffRequest;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffResponse;
 import io.github.kxng0109.aiprcopilot.config.api.dto.ModelAnalyzeDiffResult;
@@ -40,6 +41,9 @@ public class DiffAnalysisServiceTest {
     private AiGenerationProperties aiGenerationProperties;
 
     @Mock
+    private PrcopilotLoggingProperties loggingProperties;
+
+    @Mock
     private ChatClient chatClient;
 
     @Mock
@@ -64,7 +68,7 @@ public class DiffAnalysisServiceTest {
         aiGenerationProperties.setTemperature(0.1);
         aiGenerationProperties.setTimeoutMillis(30000L);
 
-        diffAnalysisService = new DiffAnalysisService(prCopilotAnalysisProperties, chatClient, chatOptions, objectMapper);
+        diffAnalysisService = new DiffAnalysisService(prCopilotAnalysisProperties, chatClient, chatOptions, objectMapper, loggingProperties);
     }
 
     @Test

@@ -3,13 +3,23 @@ management:
     web:
       exposure:
         include: health, info
+  info:
+    env:
+      enabled: true
+
+info:
+  project:
+    name: AI PR Copilot
+    description: "AI-powered code audit and risk scoring service"
+    version: "1.0.0"
+  contact:
+    team: "Platform Engineering"
+    email: "prcopilot-support@example.com"
 
 springdoc:
   api-docs:
-    enabled: true
-    path: /v3/api-docs
+    path: /api-docs
   swagger-ui:
-    enabled: true
     path: /swagger-ui.html
 
 prcopilot:
@@ -41,4 +51,4 @@ spring:
 ai:
   temperature: ${AI_TEMPERATURE:0.1}
   max-tokens: ${AI_MAX_TOKENS:1024}
-  timeout-millis: ${AI_TIMEOUT_MILLS:30000}
+  timeout-millis: ${AI_TIMEOUT_MILLIS:30000}
