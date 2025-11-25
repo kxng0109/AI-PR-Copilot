@@ -17,7 +17,7 @@ public class MultiAiConfigurationProperties {
     @NotNull
     private AiProvider provider = AiProvider.OPENAI;
 
-    private AiProvider fallbackProvider = AiProvider.OLLAMA;
+    private AiProvider fallbackProvider;
 
     private boolean autoFallback = false;
 

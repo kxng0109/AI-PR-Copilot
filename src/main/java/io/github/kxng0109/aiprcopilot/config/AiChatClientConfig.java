@@ -34,10 +34,10 @@ public class AiChatClientConfig {
 
     private final MultiAiConfigurationProperties multiAiConfigurationProperties;
 
-    private OpenAiChatModel openAiChatModel;
-    private AnthropicChatModel anthropicChatModel;
-    private VertexAiGeminiChatModel vertexAiGeminiChatModel;
-    private OllamaChatModel ollamaChatModel;
+    private final OpenAiChatModel openAiChatModel;
+    private final AnthropicChatModel anthropicChatModel;
+    private final VertexAiGeminiChatModel vertexAiGeminiChatModel;
+    private final OllamaChatModel ollamaChatModel;
 
     /**
      * Constructs the primary {@code ChatClient} based on the selected AI provider.
@@ -70,13 +70,14 @@ public class AiChatClientConfig {
     }
 
     /**
-     * Constructs a fallback {@code ChatClient} based on the configured AI provider.
+     * Constructs a fallback {@code ChatClient} instance based on the configured AI provider.
      *
-     * <p>Creates an instance of {@code ChatClient} if the auto fallback mechanism is enabled and a fallback
-     * provider is specified in {@code multiAiConfigurationProperties}.
+     * <p>Auto-fallback mechanism ensures the availability of a {@code ChatClient} even when
+     * the primary provider is unavailable. The fallback provider must be explicitly
+     * configured via {@code multiAiConfigurationProperties}.
      *
-     * @return the fallback {@code ChatClient} instance, or {@code null} if auto fallback is disabled
-     * or no fallback provider is configured
+     * @return the fallback {@code ChatClient} instance, never {@code null}
+     * @throws IllegalStateException if auto-fallback is enabled but no fallback provider is configured
      */
     @Bean
     @ConditionalOnProperty(name = "prcopilot.ai.auto-fallback", havingValue = "true")
@@ -92,13 +93,13 @@ public class AiChatClientConfig {
     }
 
     /**
-     * Constructs fallback {@code ChatOptions} based on the configured fallback AI provider.
+     * Constructs a fallback {@code ChatOptions} instance based on the configured AI provider.
      *
-     * <p>Determines the appropriate fallback chat settings by consulting
-     * {@code multiAiConfigurationProperties} for the specified fallback provider
-     * and builds a corresponding {@code ChatOptions} instance.
+     * <p>Creates a {@code ChatOptions} instance if the auto fallback mechanism is enabled and
+     * a fallback provider is specified in {@code multiAiConfigurationProperties}.
      *
      * @return the fallback {@code ChatOptions} instance, never {@code null}
+     * @throws IllegalStateException if auto fallback is enabled but no fallback provider is configured
      */
     @Bean
     @ConditionalOnProperty(name = "prcopilot.ai.auto-fallback", havingValue = "true")

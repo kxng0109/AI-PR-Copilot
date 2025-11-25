@@ -124,16 +124,16 @@ public class DiffAnalysisServiceTest {
                 --- a/src/main/java/io/github/kxng0109/aiprcopilot/service/DiffAnalysisService.java
                 +++ b/src/main/java/io/github/kxng0109/aiprcopilot/service/DiffAnalysisService.java
                 @@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
-                
+
                  import java.util.Map;
                 +import java.util.regex.Pattern;
-                
+
                  @Service
                  @RequiredArgsConstructor
                 @@ -45,6 +46,8 @@ public class DiffAnalysisService {
                              Be concise and do not invent information not suggested by the diff.
                              ""\";
-                
+
                 +    private static final Pattern DIFF_GIT_LINE_PATTERN = Pattern.compile("^diff --git a/(.+?) b/(.+)$");
                 +
                      private final PrCopilotAnalysisProperties analysisProperties;

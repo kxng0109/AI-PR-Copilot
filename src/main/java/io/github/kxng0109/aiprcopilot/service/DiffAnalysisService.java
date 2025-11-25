@@ -2,12 +2,14 @@ package io.github.kxng0109.aiprcopilot.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.kxng0109.aiprcopilot.config.MultiAiConfigurationProperties;
 import io.github.kxng0109.aiprcopilot.config.PrCopilotAnalysisProperties;
 import io.github.kxng0109.aiprcopilot.config.PrCopilotLoggingProperties;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AiCallMetadata;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffRequest;
 import io.github.kxng0109.aiprcopilot.config.api.dto.AnalyzeDiffResponse;
 import io.github.kxng0109.aiprcopilot.config.api.dto.ModelAnalyzeDiffResult;
+import io.github.kxng0109.aiprcopilot.error.CustomApiException;
 import io.github.kxng0109.aiprcopilot.error.DiffTooLargeException;
 import io.github.kxng0109.aiprcopilot.error.ModelOutputParseException;
 import lombok.RequiredArgsConstructor;
@@ -19,8 +21,13 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.chat.prompt.SystemPromptTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 
+import javax.annotation.Nullable;
+import java.nio.channels.UnresolvedAddressException;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -77,6 +84,15 @@ public class DiffAnalysisService {
     private final ChatOptions primaryChatOptions;
     private final ObjectMapper objectMapper;
     private final PrCopilotLoggingProperties loggingProperties;
+    private final MultiAiConfigurationProperties multiAiConfigurationProperties;
+
+    @Qualifier("fallBackChatClient")
+    @Nullable
+    private final ChatClient fallbackChatClient;
+
+    @Qualifier("fallBackChatOptions")
+    @Nullable
+    private final ChatOptions fallbackChatOptions;
 
     public AnalyzeDiffResponse analyzeDiff(AnalyzeDiffRequest request) {
         String diff = request.diff();
@@ -99,18 +115,50 @@ public class DiffAnalysisService {
 
         if (loggingProperties.isLogPrompts()) log.info(prompt.toString());
 
-        long start = System.currentTimeMillis();
-        ChatResponse aiResponse = callAiModel(prompt);
-        long end = System.currentTimeMillis();
-        long latencyMs = end - start;
-
         try {
+            log.debug("Attempting to use primary provider: {}", multiAiConfigurationProperties.getProvider());
+
+            long start = System.currentTimeMillis();
+            ChatResponse aiResponse = callAiModel(prompt, primaryChatClient, primaryChatOptions);
+            long end = System.currentTimeMillis();
+            long latencyMs = end - start;
+
             return mapToAnalyzeDiffResponse(aiResponse, latencyMs, diff, request.requestId());
         } catch (ModelOutputParseException e) {
             log.warn("Model output could not be parsed for requestId '{}': {}", request.requestId(), e.getMessage());
             throw e;
         } catch (Exception e) {
-            log.error("Unexpected error in diff analysis for requestId '{}'", request.requestId(), e);
+            log.error("Unexpected error in diff analysis for requestId '{}' while using primary provider: {}",
+                      request.requestId(), multiAiConfigurationProperties.getProvider(), e
+            );
+
+            if (multiAiConfigurationProperties.isAutoFallback() && fallbackChatClient != null) {
+                try {
+                    log.debug("Attempting to use fallback chat client: {}",
+                              multiAiConfigurationProperties.getFallbackProvider()
+                    );
+
+                    long start = System.currentTimeMillis();
+                    ChatResponse aiResponse = callAiModel(prompt, fallbackChatClient, fallbackChatOptions);
+                    long end = System.currentTimeMillis();
+                    long latencyMs = end - start;
+
+                    return mapToAnalyzeDiffResponse(aiResponse, latencyMs, diff, request.requestId());
+                } catch (Exception fallBackException) {
+                    log.error(
+                            "Unexpected error in diff analysis for requestId '{}' while using primary provider: {}",
+                            request.requestId(),
+                            multiAiConfigurationProperties.getFallbackProvider(),
+                            fallBackException
+                    );
+
+                    throw new RuntimeException("Could not process diff analysis due to internal error.",
+                                               fallBackException
+                    );
+                }
+            }
+
+            log.debug("No fallback available. Auto-fallback is disabled or no fallback client is configured.");
             throw new RuntimeException("Could not process diff analysis due to internal error.", e);
         }
     }
@@ -150,11 +198,27 @@ public class DiffAnalysisService {
         );
     }
 
-    private ChatResponse callAiModel(Prompt prompt) {
-        return primaryChatClient.prompt(prompt)
-                         .options(primaryChatOptions)
-                         .call()
-                         .chatResponse();
+    private ChatResponse callAiModel(Prompt prompt, ChatClient chatClient, ChatOptions chatOptions) {
+        try {
+            return chatClient.prompt(prompt)
+                             .options(chatOptions)
+                             .call()
+                             .chatResponse();
+        } catch (UnresolvedAddressException e) {
+            log.error("Failed to resolve remote service address: {}", e.getMessage(), e);
+            throw new CustomApiException("Failed to resolve remote service address: " + e.getMessage(),
+                                         HttpStatus.BAD_GATEWAY, e
+            );
+        } catch (ResourceAccessException e) {
+            log.error("Failed to access remote resource: {}", e.getMessage(), e);
+            HttpStatus status = e.getCause() instanceof java.net.SocketTimeoutException
+                    ? HttpStatus.GATEWAY_TIMEOUT
+                    : HttpStatus.BAD_GATEWAY;
+            throw new CustomApiException("Failed to access remote resource: " + e.getMessage(), status, e);
+        } catch (Exception e) {
+            log.error("Unexpected error during remote call: {}", e.getMessage(), e);
+            throw new RuntimeException("Unexpected error during remote call: " + e.getMessage(), e);
+        }
     }
 
     private AnalyzeDiffResponse mapToAnalyzeDiffResponse(

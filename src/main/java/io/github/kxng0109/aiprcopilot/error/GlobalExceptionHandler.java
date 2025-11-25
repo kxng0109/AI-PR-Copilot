@@ -198,6 +198,32 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles {@link CustomApiException} by constructing an {@code ErrorResponse} and
+     * returning it wrapped in a {@code ResponseEntity} with the corresponding HTTP status code.
+     *
+     * @param ex the exception that occurred, must not be {@code null}
+     * @param request the HTTP request that caused the exception, must not be {@code null}
+     * @return a response entity containing error details, never {@code null}
+     */
+    @ExceptionHandler(CustomApiException.class)
+    public ResponseEntity<ErrorResponse> handleCustomApiException(
+            CustomApiException ex,
+            HttpServletRequest request
+    ){
+        HttpStatus status = ex.getHttpStatus();
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                                                   .timestamp(OffsetDateTime.now())
+                                                   .statusCode(status.value())
+                                                   .error(status.getReasonPhrase())
+                                                   .message(ex.getMessage())
+                                                   .path(request.getRequestURI())
+                                                   .build();
+
+        return ResponseEntity.status(status).body(errorResponse);
+    }
+
+    /**
      * Handles general exceptions by constructing an {@code ErrorResponse} and returning it
      * wrapped in a {@code ResponseEntity} with an HTTP 500 status code.
      *
