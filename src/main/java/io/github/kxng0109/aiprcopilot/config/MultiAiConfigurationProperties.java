@@ -8,6 +8,12 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
+/**
+ * Configuration properties for managing multiple AI providers in PR Copilot.
+ *
+ * <p>Defines settings for primary and fallback providers, token usage limits,
+ * request timeouts, and behavior for automatic fallback.
+ */
 @Getter
 @Setter
 @Validated
@@ -21,13 +27,13 @@ public class MultiAiConfigurationProperties {
 
     private boolean autoFallback = false;
 
-    @Min(0)
-    @Max(1)
+    @Min(value = 0, message = "Temperature must be between 0.0 and 1.0 inclusive")
+    @Max(value = 1, message = "Temperature must be between 0.0 and 1.0 inclusive")
     private double temperature;
 
-    @Min(1)
+    @Min(value = 1, message = "Max tokens can not be less than 1")
     private int maxTokens;
 
-    @Min(1000)
+    @Min(value = 1000, message = "Request timeout must be at least 1000ms")
     private long timeoutMillis;
 }

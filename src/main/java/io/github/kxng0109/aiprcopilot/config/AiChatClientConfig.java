@@ -7,16 +7,25 @@ import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.model.NoopApiKey;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel;
 import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.http.client.reactive.JdkClientHttpConnector;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.net.http.HttpClient;
+import java.time.Duration;
 
 /**
  * Configuration class for initializing AI chat clients and options.
@@ -81,7 +90,7 @@ public class AiChatClientConfig {
      */
     @Bean
     @ConditionalOnProperty(name = "prcopilot.ai.auto-fallback", havingValue = "true")
-    public ChatClient fallBackChatClient() {
+    public ChatClient fallbackChatClient() {
         if (multiAiConfigurationProperties.getFallbackProvider() == null) {
             throw new IllegalStateException(
                     "Auto-fallback is enabled but no fallback provider is configured. Please set PRCOPILOT_AI_FALLBACK_PROVIDER or disable auto-fallback."
@@ -103,7 +112,7 @@ public class AiChatClientConfig {
      */
     @Bean
     @ConditionalOnProperty(name = "prcopilot.ai.auto-fallback", havingValue = "true")
-    public ChatOptions fallBackChatOptions() {
+    public ChatOptions fallbackChatOptions() {
         if (multiAiConfigurationProperties.getFallbackProvider() == null) {
             throw new IllegalStateException(
                     "Auto-fallback is enabled but no fallback provider is configured. Please set PRCOPILOT_AI_FALLBACK_PROVIDER or disable auto-fallback."

@@ -48,6 +48,8 @@ prcopilot:
     max-tokens: ${AI_MAX_TOKENS:1024}
     timeout-millis: ${AI_TIMEOUT_MILLIS:30000}
 
+  prompts:
+    system-prompt: classpath:prompts/system-prompt.txt
 
 spring:
   ai:
