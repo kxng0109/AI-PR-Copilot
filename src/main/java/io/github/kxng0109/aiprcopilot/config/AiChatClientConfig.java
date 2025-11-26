@@ -7,25 +7,16 @@ import org.springframework.ai.anthropic.AnthropicChatOptions;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.ChatOptions;
-import org.springframework.ai.model.NoopApiKey;
 import org.springframework.ai.ollama.OllamaChatModel;
 import org.springframework.ai.ollama.api.OllamaChatOptions;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.OpenAiChatOptions;
-import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatModel;
 import org.springframework.ai.vertexai.gemini.VertexAiGeminiChatOptions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.http.client.reactive.JdkClientHttpConnector;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.reactive.function.client.WebClient;
-
-import java.net.http.HttpClient;
-import java.time.Duration;
 
 /**
  * Configuration class for initializing AI chat clients and options.
@@ -136,7 +127,9 @@ public class AiChatClientConfig {
             case OPENAI -> {
                 if (openAiChatModel == null) {
                     throw new IllegalArgumentException(
-                            "OpenAI provider is selected but not configured. Set OPENAI_API_KEY.");
+                            "OpenAI provider is selected but not configured. Set OPENAI_API_KEY." +
+                                    "Check .env.example for more details."
+                    );
                 }
 
                 yield openAiChatModel;
@@ -145,7 +138,9 @@ public class AiChatClientConfig {
             case ANTHROPIC -> {
                 if (anthropicChatModel == null) {
                     throw new IllegalArgumentException(
-                            "Anthropic provider is selected but not configured. Set ANTHROPIC_API_KEY.");
+                            "Anthropic provider is selected but not configured. Set ANTHROPIC_API_KEY." +
+                                    "Check .env.example for more details."
+                    );
                 }
 
                 yield anthropicChatModel;
@@ -154,7 +149,9 @@ public class AiChatClientConfig {
             case GEMINI -> {
                 if (vertexAiGeminiChatModel == null) {
                     throw new IllegalArgumentException(
-                            "Gemini provider is selected but not configured. Set up GCP credentials.");
+                            "Gemini provider is selected but not configured. Set up GCP credentials." +
+                                    "Check .env.example for more details."
+                    );
                 }
 
                 yield vertexAiGeminiChatModel;
@@ -163,7 +160,8 @@ public class AiChatClientConfig {
             case OLLAMA -> {
                 if (ollamaChatModel == null) {
                     throw new IllegalArgumentException(
-                            "Ollama provider is selected but not configured. Set up OLLAMA_MODEL and ensure Ollama is running.");
+                            "Ollama provider is selected but not configured. Set up OLLAMA_MODEL and ensure Ollama is running." +
+                                    "Check .env.example for more details.");
                 }
 
                 yield ollamaChatModel;

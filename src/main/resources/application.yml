@@ -54,14 +54,14 @@ prcopilot:
 spring:
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY}
+      api-key: ${OPENAI_API_KEY:default-value}
       base-url: ${OPENAI_BASE_URL:https://api.openai.com}
       chat:
         options:
           model: ${OPENAI_MODEL:gpt-4o}
 
     anthropic:
-      api-key: ${ANTHROPIC_API_KEY}
+      api-key: ${ANTHROPIC_API_KEY:default-value}
       base-url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com}
       chat:
         options:
@@ -73,7 +73,7 @@ spring:
           chat:
             options:
               model: ${GEMINI_MODEL:gemini-2.0-flash}
-          project-id: ${GEMINI_PROJECT_ID}
+          project-id: ${GEMINI_PROJECT_ID:default-value}
           location: ${GEMINI_LOCATION:us-central1}
 
     ollama:

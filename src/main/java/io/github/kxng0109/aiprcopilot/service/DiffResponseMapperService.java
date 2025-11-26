@@ -38,30 +38,32 @@ class DiffResponseMapperService {
     private final PrCopilotAnalysisProperties analysisProperties;
 
     /**
-     * Maps the output of a chat-based AI response to an {@code AnalyzeDiffResponse} instance.
+     * Maps the AI model's raw {@code ChatResponse} output and related metadata to an {@code AnalyzeDiffResponse}.
      *
-     * @param response     the chat response from the AI, must not be {@code null}
-     * @param responseTime the time taken for the AI to respond, in milliseconds
-     * @param diff         the code diff content analyzed by the AI, must not be {@code null}
-     * @param requestId    the identifier for the current request, must not be {@code null} or blank
-     * @return an {@code AnalyzeDiffResponse} containing the AI's analysis, never {@code null}
-     * @throws ModelOutputParseException if the AI's output is malformed or missing required fields
+     * @param response     the AI model's raw response, must not be {@code null}
+     * @param responseTime the time taken by the model to respond, in milliseconds, must be non-negative
+     * @param diff         the code diff content used for analysis, must not be {@code null} or empty
+     * @param requestId    the unique request identifier, must not be {@code null} or empty
+     * @param provider     the name of the AI provider, must not be {@code null} or empty
+     * @return a fully populated {@code AnalyzeDiffResponse}, never {@code null}
+     * @throws ModelOutputParseException if the AI model's output is invalid or missing required fields
      * @throws RuntimeException          if an unexpected error occurs during mapping
      */
     public AnalyzeDiffResponse mapToAnalyzeDiffResponse(
             ChatResponse response,
             long responseTime,
             String diff,
-            String requestId
+            String requestId,
+            String provider
     ) {
         String modelOutput = extractModelOutputText(response);
-        log.debug("AI model raw output: {}", modelOutput);
+        log.debug("AI model raw output: {}", modelOutput); //Remove
         String cleanedModelOutput = sanitizeModelOutput(modelOutput);
-        log.debug("AI model cleaned output: {}", cleanedModelOutput);
+        log.debug("AI model cleaned output: {}", cleanedModelOutput); //Remove
 
         try {
             ModelAnalyzeDiffResult aiResult = objectMapper.readValue(cleanedModelOutput, ModelAnalyzeDiffResult.class);
-            log.debug("AI model analysis result: {}", aiResult);
+            log.debug("AI model analysis result: {}", aiResult); //Remove
 
             if (aiResult == null) {
                 throw new ModelOutputParseException("Parsed model output is null. Expected non-null, valid JSON DTO.");
@@ -76,7 +78,9 @@ class DiffResponseMapperService {
             if (loggingProperties.isLogResponses()) log.info(aiResult.toString());
 
             String model = response.getMetadata().getModel();
-            int tokensUsed = response.getMetadata().getUsage().getTotalTokens();
+            Integer tokensUsed = response.getMetadata().getUsage().getTotalTokens() != null
+                    ? response.getMetadata().getUsage().getTotalTokens()
+                    : null;
 
             List<String> touchedFiles = (aiResult.touchedFiles() == null || aiResult.touchedFiles().isEmpty())
                     ? extractTouchedFilesFromDiff(diff)
@@ -84,12 +88,10 @@ class DiffResponseMapperService {
 
             AiCallMetadata metadata = AiCallMetadata.builder()
                                                     .modelName(model)
+                                                    .provider(provider)
                                                     .tokensUsed(tokensUsed)
                                                     .modelLatencyMs(responseTime)
                                                     .build();
-
-            log.debug("IncludeRawModelOutput: {}", analysisProperties.isIncludeRawModelOutput());
-            log.debug("Model raw output: {}", modelOutput);
 
             return AnalyzeDiffResponse.builder()
                                       .title(aiResult.title())
@@ -135,17 +137,26 @@ class DiffResponseMapperService {
     }
 
     /**
-     * Sanitizes the output from a model by removing specific formatting elements
-     * such as enclosing code block markers.
+     * Sanitizes the output of a model by removing extra formatting or wrapping elements.
      *
-     * @param value the raw output from the model, may be {@code null} or blank
-     * @return the sanitized output string, or an empty string if {@code value} is {@code null} or blank
+     * @param value the raw output string, may be {@code null} or blank
+     * @return the sanitized string, never {@code null}. Returns an empty string if the input was {@code null} or blank.
      */
     private String sanitizeModelOutput(String value) {
         if (value == null || value.isBlank()) return "";
         value = value.replaceFirst("(?s)^```(?:json)?\\s*\\n?", "");
         value = value.replaceFirst("(?s)\\n?```$", "");
-        return value.trim();
+        value = value.trim();
+
+        if (!value.startsWith("{")) {
+            int start = value.indexOf("{");
+            int end = value.lastIndexOf("}");
+            if (start != -1 && end != -1 && end > start) {
+                value = value.substring(start, end + 1);
+            }
+        }
+
+        return value;
     }
 
     /**

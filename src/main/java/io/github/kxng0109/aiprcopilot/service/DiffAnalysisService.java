@@ -80,17 +80,7 @@ public class DiffAnalysisService {
         try {
             log.debug("Attempting to use primary provider: {}", multiAiConfigurationProperties.getProvider());
 
-            long start = System.currentTimeMillis();
-            ChatResponse aiResponse = aiChatService.callAiModel(prompt, primaryChatClient, primaryChatOptions);
-            long end = System.currentTimeMillis();
-            long latencyMs = end - start;
-
-            return diffResponseMapperService.mapToAnalyzeDiffResponse(
-                    aiResponse,
-                    latencyMs,
-                    diff,
-                    request.requestId()
-            );
+            return callAiAndBuildResponse(request, diff, prompt, primaryChatClient, primaryChatOptions);
         } catch (ModelOutputParseException e) {
             log.warn("Model output could not be parsed for requestId '{}': {}", request.requestId(), e.getMessage());
             throw e;
@@ -106,16 +96,7 @@ public class DiffAnalysisService {
                               multiAiConfigurationProperties.getFallbackProvider()
                     );
 
-                    long start = System.currentTimeMillis();
-                    ChatResponse aiResponse = aiChatService.callAiModel(prompt, fallbackChatClient,
-                                                                        fallbackChatOptions
-                    );
-                    long end = System.currentTimeMillis();
-                    long latencyMs = end - start;
-
-                    return diffResponseMapperService.mapToAnalyzeDiffResponse(aiResponse, latencyMs, diff,
-                                                                              request.requestId()
-                    );
+                    return callAiAndBuildResponse(request, diff, prompt, fallbackChatClient, fallbackChatOptions);
                 } catch (Exception fallBackException) {
                     log.error(
                             "Unexpected error in diff analysis for requestId '{}' while using fallback provider: {}",
@@ -138,6 +119,36 @@ public class DiffAnalysisService {
             log.debug("No fallback available. Auto-fallback is disabled or no fallback client is configured.");
             throw new RuntimeException("Could not process diff analysis due to internal error.", primaryException);
         }
+    }
+
+    /**
+     * Invokes an AI model to analyze a code diff and constructs a response containing the analysis results.
+     *
+     * @param request             the request containing metadata and context for the analysis, must not be {@code null}
+     * @param diff                the code diff to be analyzed, must not be {@code null} or empty
+     * @param prompt              the AI model prompt used for guiding the analysis, must not be {@code null} or blank
+     * @param fallbackChatClient  the fallback chat client to use for the AI call, must not be {@code null}
+     * @param fallbackChatOptions the options to configure the fallback chat client, must not be {@code null}
+     * @return the response containing the AI analysis results, never {@code null}
+     * @throws IllegalArgumentException if any required parameter is {@code null} or invalid
+     */
+    private AnalyzeDiffResponse callAiAndBuildResponse(AnalyzeDiffRequest request, String diff, Prompt prompt, ChatClient fallbackChatClient, ChatOptions fallbackChatOptions) {
+        long start = System.currentTimeMillis();
+        ChatResponse aiResponse = aiChatService.callAiModel(
+                prompt,
+                fallbackChatClient,
+                fallbackChatOptions
+        );
+        long end = System.currentTimeMillis();
+        long latencyMs = end - start;
+
+        return diffResponseMapperService.mapToAnalyzeDiffResponse(
+                aiResponse,
+                latencyMs,
+                diff,
+                request.requestId(),
+                multiAiConfigurationProperties.getProvider().getValue()
+        );
     }
 
     /**
