@@ -1,6 +1,8 @@
 package io.github.kxng0109.aiprcopilot.service;
 
+import io.github.kxng0109.aiprcopilot.config.MultiAiConfigurationProperties;
 import io.github.kxng0109.aiprcopilot.error.CustomApiException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -11,6 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 
 import java.nio.channels.UnresolvedAddressException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Service class for interacting with AI models via a client library.
@@ -19,24 +24,33 @@ import java.nio.channels.UnresolvedAddressException;
  */
 @Service
 @Slf4j
+@RequiredArgsConstructor
 class AiChatService {
+
+    private final MultiAiConfigurationProperties aiConfigurationProperties;
 
     /**
      * Executes a call to an AI model using the specified prompt, client, and options.
      *
-     * @param prompt      the input for the AI model, must not be {@code null}
-     * @param chatClient  the client to interact with the AI model, must not be {@code null}
-     * @param chatOptions additional configuration for the AI model invocation, must not be {@code null}
-     * @return the response from the AI model, never {@code null}
-     * @throws CustomApiException if the remote service address is unresolved or access to the resource fails
-     * @throws RuntimeException   if an unexpected error occurs during the remote call
+     * @param prompt      the prompt to send to the AI model, must not be {@code null}
+     * @param chatClient  the {@code ChatClient} used to interact with the AI model, must not be {@code null}
+     * @param chatOptions the options for configuring the AI call, must not be {@code null}
+     * @return the {@code ChatResponse} from the AI model, never {@code null}
+     * @throws CustomApiException if the request fails due to timeouts, address resolution issues, or resource access errors
+     * @throws RuntimeException   if any unexpected errors occur during the call
      */
     public ChatResponse callAiModel(Prompt prompt, ChatClient chatClient, ChatOptions chatOptions) {
+        log.debug("Request timeout set: {}", aiConfigurationProperties.getTimeoutMillis());
         try {
-            return chatClient.prompt(prompt)
-                             .options(chatOptions)
-                             .call()
-                             .chatResponse();
+            return CompletableFuture.supplyAsync(() ->
+                                                         chatClient.prompt(prompt)
+                                                                   .options(chatOptions)
+                                                                   .call()
+                                                                   .chatResponse()
+            ).get(aiConfigurationProperties.getTimeoutMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            log.error("AI Model timed out after {} milliseconds", aiConfigurationProperties.getTimeoutMillis());
+            throw new CustomApiException("AI Model request timed out", HttpStatus.GATEWAY_TIMEOUT, e);
         } catch (UnresolvedAddressException e) {
             log.error("Failed to resolve remote service address: {}", e.getMessage(), e);
             throw new CustomApiException("Failed to resolve remote service address: " + e.getMessage(),

@@ -1,10 +1,11 @@
 package io.github.kxng0109.aiprcopilot.service;
 
+import io.github.kxng0109.aiprcopilot.api.dto.AnalyzeDiffRequest;
+import io.github.kxng0109.aiprcopilot.api.dto.AnalyzeDiffResponse;
 import io.github.kxng0109.aiprcopilot.config.MultiAiConfigurationProperties;
 import io.github.kxng0109.aiprcopilot.config.PrCopilotAnalysisProperties;
 import io.github.kxng0109.aiprcopilot.config.PrCopilotLoggingProperties;
-import io.github.kxng0109.aiprcopilot.api.dto.AnalyzeDiffRequest;
-import io.github.kxng0109.aiprcopilot.api.dto.AnalyzeDiffResponse;
+import io.github.kxng0109.aiprcopilot.error.CustomApiException;
 import io.github.kxng0109.aiprcopilot.error.DiffTooLargeException;
 import io.github.kxng0109.aiprcopilot.error.ModelOutputParseException;
 import lombok.RequiredArgsConstructor;
@@ -92,10 +93,21 @@ public class DiffAnalysisService {
             log.warn("Model output could not be parsed for requestId '{}': {}", request.requestId(), e.getMessage());
             throw e;
         } catch (Exception primaryException) {
-            log.error("Unexpected error in diff analysis for requestId '{}' while using primary provider: {}. {}",
-                      request.requestId(), multiAiConfigurationProperties.getProvider(), primaryException.getMessage(),
-                      primaryException
-            );
+            if (primaryException instanceof CustomApiException) {
+                log.error("An error occurred while using primary provider '{}' for requestId {}: {}",
+                          multiAiConfigurationProperties.getProvider().getValue(),
+                          request.requestId(),
+                          primaryException.getMessage(),
+                          primaryException
+                );
+            } else {
+                log.error("Unexpected error in diff analysis for requestId '{}' while using primary provider: {}. {}",
+                          request.requestId(),
+                          multiAiConfigurationProperties.getProvider().getValue(),
+                          primaryException.getMessage(),
+                          primaryException
+                );
+            }
 
             if (multiAiConfigurationProperties.isAutoFallback() && fallbackChatClient != null) {
                 try {
@@ -112,25 +124,39 @@ public class DiffAnalysisService {
                             multiAiConfigurationProperties.getFallbackProvider().getValue()
                     );
                 } catch (Exception fallBackException) {
-                    log.error(
-                            "Unexpected error in diff analysis for requestId '{}' while using fallback provider: {}",
-                            request.requestId(),
-                            multiAiConfigurationProperties.getFallbackProvider(),
-                            fallBackException
-                    );
+                    if (fallBackException instanceof CustomApiException) {
+                        log.error("An error occurred while using primary provider '{}' for requestId {}: {}",
+                                  multiAiConfigurationProperties.getFallbackProvider().getValue(),
+                                  request.requestId(),
+                                  fallBackException.getMessage(),
+                                  fallBackException
+                        );
 
-                    throw new RuntimeException(
-                            String.format(
-                                    "Could not process diff analysis due to internal error. Primary: %s. Fallback: %s",
-                                    primaryException.getMessage(),
-                                    fallBackException.getMessage()
-                            ),
-                            fallBackException
-                    );
+                        throw new CustomApiException(
+                                String.format(
+                                        "An error occurred. Primary: %s. Fallback: %s",
+                                        primaryException.getMessage(),
+                                        fallBackException.getMessage()
+                                ),
+                                ((CustomApiException) fallBackException).getHttpStatus(),
+                                fallBackException
+                        );
+                    } else {
+                        log.error(
+                                "Unexpected error in diff analysis for requestId '{}' while using fallback provider: {}",
+                                request.requestId(),
+                                multiAiConfigurationProperties.getFallbackProvider().getValue(),
+                                fallBackException
+                        );
+                    }
                 }
             }
 
             log.debug("No fallback available. Auto-fallback is disabled or no fallback client is configured.");
+
+            if (primaryException instanceof CustomApiException) {
+                throw primaryException;
+            }
             throw new RuntimeException("Could not process diff analysis due to internal error.", primaryException);
         }
     }
@@ -138,9 +164,9 @@ public class DiffAnalysisService {
     /**
      * Invokes an AI model to analyze a code diff and constructs a response containing the analysis results.
      *
-     * @param request             the request containing metadata and context for the analysis, must not be {@code null}
-     * @param diff                the code diff to be analyzed, must not be {@code null} or empty
-     * @param prompt              the AI model prompt used for guiding the analysis, must not be {@code null} or blank
+     * @param request     the request containing metadata and context for the analysis, must not be {@code null}
+     * @param diff        the code diff to be analyzed, must not be {@code null} or empty
+     * @param prompt      the AI model prompt used for guiding the analysis, must not be {@code null} or blank
      * @param chatClient  the fallback chat client to use for the AI call, must not be {@code null}
      * @param chatOptions the options to configure the fallback chat client, must not be {@code null}
      * @return the response containing the AI analysis results, never {@code null}
